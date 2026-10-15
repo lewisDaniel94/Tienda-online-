@@ -156,7 +156,7 @@ main h2, .cart-sidebar h2 {
     padding: 10px;
     border: 1px solid #dcdde1;
     border-radius: 4px;
-    font-size: 0.95rem;
+    font-size: 16px;
 }
 
 #btn-submit-order {
@@ -173,3 +173,69 @@ main h2, .cart-sidebar h2 {
 #btn-submit-order:hover {
     background-color: #ff334b;
 }
+
+/* ===================== MÓVIL: sin zoom accidental ni desbordes ===================== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: pan-x pan-y; }
+html, body { max-width: 100%; overflow-x: hidden; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
+img { max-width: 100%; }
+/* 16px evita el zoom automático de iPhone al tocar un campo de texto */
+input, select, textarea { font-size: 16px; }
+main, .cart-sidebar { min-width: 0; }
+.grid-menu { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+
+/* Cabecera siempre a la vista para poder abrir el carrito desde cualquier punto */
+header { position: sticky; top: 0; z-index: 50; }
+@media (max-width: 480px) {
+    header { padding: 14px 16px; gap: 10px; }
+    header h1 { font-size: 1.1rem; }
+    #btn-carrito { padding: 9px 12px; white-space: nowrap; }
+}
+
+/* ===================== CARRITO ===================== */
+.btn-close-cart, .cart-overlay { display: none; }
+
+/* Escritorio: el pedido queda fijo a un lado mientras se recorre el menú */
+@media (min-width: 901px) {
+    .cart-sidebar { position: sticky; top: 90px; align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; }
+}
+.cart-sidebar.flash { box-shadow: 0 0 0 2px #f1c40f, 0 8px 20px rgba(0,0,0,0.9) !important; }
+
+/* Celular y tablet: el carrito se abre como panel deslizante al tocar el botón */
+@media (max-width: 900px) {
+    .cart-sidebar {
+        position: fixed; top: 0; right: 0; bottom: 0;
+        width: min(420px, 92%); height: auto;
+        overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+        z-index: 1000; border-radius: 0 !important;
+        transform: translateX(105%); visibility: hidden;
+        transition: transform .3s ease, visibility 0s linear .3s;
+    }
+    .cart-sidebar.open { transform: none; visibility: visible; transition: transform .3s ease; }
+    .btn-close-cart {
+        display: flex; position: absolute; top: 12px; right: 12px;
+        width: 38px; height: 38px; align-items: center; justify-content: center;
+        border-radius: 50%; border: 1px solid #551a1a; background: #2a1215; color: #ff5252;
+        font-size: 16px; cursor: pointer;
+    }
+    .cart-overlay {
+        display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+        z-index: 999; opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    .cart-overlay.show { opacity: 1; pointer-events: auto; }
+    body.cart-open { overflow: hidden; }
+    #cart-items { max-height: none; }
+}
+
+/* Aviso al agregar un producto */
+#toast-carrito {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
+    background: #f1c40f; color: #000; font-weight: 700; font-size: 14px;
+    padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
+    z-index: 1100; max-width: 90vw; text-align: center;
+}
+#toast-carrito.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Título del pedido legible sobre el fondo oscuro */
+.cart-sidebar h2 { color: #f1c40f; }

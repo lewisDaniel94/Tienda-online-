@@ -30,9 +30,9 @@ function aplicarEstilosLoginDeLujo() {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            overflow: hidden;
+            overflow-x: hidden;
         }
 
         /* Contenedor principal de inicio de sesión */
@@ -70,7 +70,7 @@ function aplicarEstilosLoginDeLujo() {
             width: 100% !important;
             box-sizing: border-box;
             margin-bottom: 18px !important;
-            font-size: 14px;
+            font-size: 16px;
             transition: border-color 0.2s ease;
         }
         

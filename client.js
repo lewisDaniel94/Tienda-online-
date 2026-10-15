@@ -19,6 +19,13 @@ const db = getFirestore(app);
 
 // Variables del carrito
 let cart = [];
+const productsById = {};
+
+// Escapa texto antes de meterlo en HTML (evita que nombres/notas rompan la página)
+const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
+// Imagen de respaldo (no depende de ningún servicio externo)
+const IMG_FALLBACK = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180" viewBox="0 0 300 180"><rect width="300" height="180" fill="#111"/><text x="150" y="105" font-size="48" text-anchor="middle">🍽️</text></svg>');
 
 // Aplicar estilos globales de lujo uniforme a toda la página
 function aplicarEstilosDeLujo() {
@@ -53,7 +60,7 @@ function aplicarEstilosDeLujo() {
         /* Contenedor del menú principal */
         #menu-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
             gap: 25px;
             padding: 20px 0;
         }
@@ -129,6 +136,10 @@ function aplicarEstilosDeLujo() {
             height: 30px;
             border-radius: 4px;
             text-align: center;
+            width: 56px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            flex: none;
         }
 
         /* Ventana "Tu pedido" (Carrito) y Formularios completamente oscuros */
@@ -158,6 +169,7 @@ function aplicarEstilosDeLujo() {
             width: 100% !important;
             box-sizing: border-box;
             margin-bottom: 12px !important;
+            font-size: 16px !important;
         }
         input:focus, select:focus, textarea:focus {
             border-color: #f1c40f !important;
@@ -251,34 +263,39 @@ async function loadMenu() {
         menuContainer.innerHTML = "";
 
         const crearTarjetaNode = (product, tipoCategoria) => {
-            // Definir el texto de ejemplo (placeholder) según la categoría del producto
-            let placeholderNota = "Nota (Ej: Sin papas, extra salsa...)"; // Por defecto para platos/hamburguesas
+            productsById[product.id] = product;
 
+            // Texto de ejemplo (placeholder) según la categoría del producto
+            let placeholderNota = "Nota (Ej: Sin papas, extra salsa...)";
             if (tipoCategoria === "bebidas") {
                 placeholderNota = "Ej: Pepsi, Coca-Cola, Sprite, Piña, Durazno, Fresa...";
             } else if (tipoCategoria === "postres") {
                 placeholderNota = "Ej: Torta de piña, Torta tres leches...";
             }
 
+            const id = esc(product.id);
             const card = document.createElement("div");
             card.classList.add("product-card");
             card.innerHTML = `
-                <img src="${product.image || 'https://via.placeholder.com/150'}" alt="${product.name || 'Producto'}">
-                <h3>${product.name || 'Sin nombre'}</h3>
-                <p style="font-size: 13px; color: #aaa; margin: 5px 0; min-height: 35px;">${product.ingredients || ''}</p>
+                <img alt="${esc(product.name || 'Producto')}" loading="lazy">
+                <h3>${esc(product.name || 'Sin nombre')}</h3>
+                <p style="font-size: 13px; color: #aaa; margin: 5px 0; min-height: 35px;">${esc(product.ingredients || '')}</p>
                 <div class="price">$${Number(product.price || 0).toFixed(2)}</div>
-                
+
                 <div class="product-qty-selector" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0;">
-                    <button type="button" onclick="window.cambiarCantidadCard('${product.id}', -1)">-</button>
-                    <input type="text" id="qty-${product.id}" value="1" readonly style="width: 35px; text-align: center;">
-                    <button type="button" onclick="window.cambiarCantidadCard('${product.id}', 1)">+</button>
+                    <button type="button" data-action="qty" data-id="${id}" data-delta="-1" aria-label="Quitar uno">-</button>
+                    <input type="text" id="qty-${id}" value="1" readonly aria-label="Cantidad">
+                    <button type="button" data-action="qty" data-id="${id}" data-delta="1" aria-label="Agregar uno">+</button>
                 </div>
 
                 <!-- Campo de nota personalizada con ejemplo dinámico -->
-                <input type="text" id="nota-${product.id}" placeholder="${placeholderNota}" style="margin-bottom: 10px; font-size: 11px; padding: 8px;">
+                <input type="text" id="nota-${id}" placeholder="${esc(placeholderNota)}" aria-label="Nota" style="margin-bottom: 10px; padding: 8px;">
 
-                <button class="btn-agregar" onclick="window.agregarAlCarritoConNota('${product.id}', '${product.name}', ${product.price || 0})">Agregar a la Orden</button>
+                <button class="btn-agregar" type="button" data-action="add" data-id="${id}">Agregar a la Orden</button>
             `;
+            const img = card.querySelector("img");
+            img.addEventListener("error", () => { img.src = IMG_FALLBACK; }, { once: true });
+            img.src = product.image || IMG_FALLBACK;
             return card;
         };
 
@@ -324,9 +341,13 @@ async function loadMenu() {
 
 // 2. Agregar al carrito considerando cantidad y nota personalizada
 window.agregarAlCarritoConNota = (id, name, price) => {
+    const producto = productsById[id];
+    const nombre = producto ? (producto.name || "Sin nombre") : (name || "Producto");
+    const precio = Number(producto ? producto.price : price) || 0;
+
     const inputQty = document.getElementById(`qty-${id}`);
     const inputNota = document.getElementById(`nota-${id}`);
-    
+
     const cantidadSeleccionada = inputQty ? parseInt(inputQty.value) || 1 : 1;
     const notaPersonalizada = inputNota ? inputNota.value.trim() : "";
 
@@ -334,25 +355,26 @@ window.agregarAlCarritoConNota = (id, name, price) => {
     if (existingItem) {
         existingItem.quantity += cantidadSeleccionada;
     } else {
-        cart.push({ 
-            id, 
-            name, 
-            price: Number(price), 
-            quantity: cantidadSeleccionada, 
-            note: notaPersonalizada 
+        cart.push({
+            id,
+            name: nombre,
+            price: precio,
+            quantity: cantidadSeleccionada,
+            note: notaPersonalizada
         });
     }
 
     if (inputQty) inputQty.value = 1;
     if (inputNota) inputNota.value = "";
-    
+
     updateCartUI();
+    mostrarToast(`✔ ${nombre} agregado al pedido`);
 };
 
-// 3. Eliminar del carrito
-window.eliminarDelCarrito = (id) => {
-    const index = cart.findIndex(item => item.id === id);
-    if (index !== -1) {
+// 3. Eliminar del carrito (por posición, para no borrar otra línea del mismo plato con distinta nota)
+window.eliminarDelCarrito = (ref) => {
+    const index = typeof ref === "number" ? ref : cart.findIndex(item => item.id === ref);
+    if (index >= 0 && index < cart.length) {
         if (cart[index].quantity > 1) {
             cart[index].quantity -= 1;
         } else {
@@ -376,24 +398,85 @@ function updateCartUI() {
     cartItemsContainer.innerHTML = "";
     let total = 0;
 
-    cart.forEach(item => {
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="empty-cart">Tu carrito está vacío</p>';
+    }
+
+    cart.forEach((item, index) => {
         total += item.price * item.quantity;
         const div = document.createElement("div");
         div.classList.add("cart-item");
         div.style.cssText = "display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 10px; font-size: 14px; border-bottom: 1px solid #222; padding-bottom: 8px;";
-        
+
         div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                <span style="color: #ddd;">${item.name} (x${item.quantity}) - <strong style="color: #f1c40f;">$${(item.price * item.quantity).toFixed(2)}</strong></span>
-                <button type="button" onclick="window.eliminarDelCarrito('${item.id}')" style="background: #2a1215; color: #ff5252; border: 1px solid #551a1a; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="Quitar">✖</button>
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; gap: 8px;">
+                <span style="color: #ddd;">${esc(item.name)} (x${item.quantity}) - <strong style="color: #f1c40f;">$${(item.price * item.quantity).toFixed(2)}</strong></span>
+                <button type="button" data-remove="${index}" style="background: #2a1215; color: #ff5252; border: 1px solid #551a1a; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;" title="Quitar" aria-label="Quitar uno de ${esc(item.name)}">✖</button>
             </div>
-            ${item.note ? `<span style="color: #f1c40f; font-size: 12px; margin-top: 4px; font-style: italic;">Nota: ${item.note}</span>` : ''}
+            ${item.note ? `<span style="color: #f1c40f; font-size: 12px; margin-top: 4px; font-style: italic;">Nota: ${esc(item.note)}</span>` : ''}
         `;
         cartItemsContainer.appendChild(div);
     });
 
     cartTotal.textContent = total.toFixed(2);
 }
+
+// Aviso breve al agregar un producto
+let toastTimer;
+function mostrarToast(texto) {
+    let t = document.getElementById("toast-carrito");
+    if (!t) {
+        t = document.createElement("div");
+        t.id = "toast-carrito";
+        t.setAttribute("role", "status");
+        document.body.appendChild(t);
+    }
+    t.textContent = texto;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+// Panel del carrito: en celular/tablet se abre deslizando; en escritorio lleva al pedido
+const cartPanel = document.getElementById("cart-panel");
+const cartOverlay = document.getElementById("cart-overlay");
+const btnCarrito = document.getElementById("btn-carrito");
+const btnCerrarCarrito = document.getElementById("btn-cerrar-carrito");
+const pantallaChica = window.matchMedia("(max-width: 900px)");
+
+function abrirCarrito() {
+    if (!cartPanel) return;
+    if (pantallaChica.matches) {
+        cartPanel.classList.add("open");
+        if (cartOverlay) cartOverlay.classList.add("show");
+        document.body.classList.add("cart-open");
+        if (btnCarrito) btnCarrito.setAttribute("aria-expanded", "true");
+        if (btnCerrarCarrito) btnCerrarCarrito.focus({ preventScroll: true });
+    } else {
+        cartPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+        cartPanel.classList.add("flash");
+        setTimeout(() => cartPanel.classList.remove("flash"), 900);
+    }
+}
+
+function cerrarCarrito() {
+    if (cartPanel) cartPanel.classList.remove("open");
+    if (cartOverlay) cartOverlay.classList.remove("show");
+    document.body.classList.remove("cart-open");
+    if (btnCarrito) btnCarrito.setAttribute("aria-expanded", "false");
+}
+
+if (btnCarrito) {
+    btnCarrito.addEventListener("click", () => {
+        if (cartPanel && cartPanel.classList.contains("open")) cerrarCarrito();
+        else abrirCarrito();
+    });
+}
+if (btnCerrarCarrito) btnCerrarCarrito.addEventListener("click", cerrarCarrito);
+if (cartOverlay) cartOverlay.addEventListener("click", cerrarCarrito);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarCarrito(); });
+if (pantallaChica.addEventListener) pantallaChica.addEventListener("change", cerrarCarrito);
+else if (pantallaChica.addListener) pantallaChica.addListener(cerrarCarrito);
 
 // 5. Enviar pedido con notas incluidas a Firestore
 const orderForm = document.getElementById("order-form");
@@ -417,6 +500,9 @@ if (orderForm) {
         const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const itemsParaGuardar = [...cart];
 
+        const submitBtn = document.getElementById("btn-submit-order");
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Enviando..."; }
+
         try {
             await addDoc(collection(db, "orders"), {
                 clientName: name,
@@ -435,13 +521,35 @@ if (orderForm) {
             cart = [];
             updateCartUI();
             orderForm.reset();
+            cerrarCarrito();
 
         } catch (error) {
             console.error("Error al enviar el pedido: ", error);
             alert("Hubo un error al procesar su orden.");
+        } finally {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Enviar Pedido"; }
         }
     });
 }
 
+// Botones del menú (+ / - / agregar) y de quitar del carrito, sin depender de nombres dentro de atributos HTML
+const menuEl = document.getElementById("menu-container");
+if (menuEl) {
+    menuEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        if (btn.dataset.action === "qty") window.cambiarCantidadCard(btn.dataset.id, parseInt(btn.dataset.delta, 10));
+        else if (btn.dataset.action === "add") window.agregarAlCarritoConNota(btn.dataset.id);
+    });
+}
+const cartItemsEl = document.getElementById("cart-items");
+if (cartItemsEl) {
+    cartItemsEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-remove]");
+        if (btn) window.eliminarDelCarrito(parseInt(btn.dataset.remove, 10));
+    });
+}
+
 // Inicializar al cargar
+updateCartUI();
 loadMenu();

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Menú Digital - Pedidos</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -10,7 +10,7 @@
 
     <header>
         <h1>🍔 Nuestro Menú Digital</h1>
-        <button id="btn-carrito">🛒 Carrito (<span id="cart-count">0</span>)</button>
+        <button id="btn-carrito" type="button" aria-controls="cart-panel" aria-expanded="false">🛒 Carrito (<span id="cart-count">0</span>)</button>
     </header>
 
     <!-- Contenedor Principal que divide el Menú y el Carrito -->
@@ -25,7 +25,8 @@
         </main>
 
         <!-- Sección 2: El Carrito y el Formulario de Envío -->
-        <aside class="cart-sidebar">
+        <aside class="cart-sidebar" id="cart-panel" aria-label="Tu pedido">
+            <button type="button" id="btn-cerrar-carrito" class="btn-close-cart" aria-label="Cerrar pedido">&#10005;</button>
             <h2>Tu Pedido</h2>
             <div id="cart-items">
                 <p class="empty-cart">Tu carrito está vacío</p>
@@ -43,6 +44,8 @@
         </aside>
 
     </div>
+
+    <div id="cart-overlay" class="cart-overlay"></div>
 
     <!-- SDKs de Firebase (Versión Modular v9+) -->
     <script type="module" src="client.js"></script>
