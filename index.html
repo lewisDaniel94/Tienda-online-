@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menú Digital - Pedidos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>🍔 Nuestro Menú Digital</h1>
+        <button id="btn-carrito">🛒 Carrito (<span id="cart-count">0</span>)</button>
+    </header>
+
+    <!-- Contenedor Principal que divide el Menú y el Carrito -->
+    <div class="shop-container">
+        
+        <!-- Sección 1: Los Productos del Menú que vienen de Firebase -->
+        <main>
+            <h2>Nuestros Platos</h2>
+            <section id="menu-container" class="grid-menu">
+                <p>Cargando menú desde Firebase...</p>
+            </section>
+        </main>
+
+        <!-- Sección 2: El Carrito y el Formulario de Envío -->
+        <aside class="cart-sidebar">
+            <h2>Tu Pedido</h2>
+            <div id="cart-items">
+                <p class="empty-cart">Tu carrito está vacío</p>
+            </div>
+            <div class="cart-total-container">
+                <p>Total: $<span id="cart-total">0.00</span></p>
+            </div>
+
+            <form id="order-form">
+                <input type="text" id="client-name" placeholder="Tu Nombre" required>
+                <input type="text" id="client-phone" placeholder="Teléfono / WhatsApp" required>
+                <input type="text" id="client-address" placeholder="Dirección o Número de Mesa" required>
+                <button type="submit" id="btn-submit-order">Enviar Pedido</button>
+            </form>
+        </aside>
+
+    </div>
+
+    <!-- SDKs de Firebase (Versión Modular v9+) -->
+    <script type="module" src="client.js"></script>
+</body>
+</html>
